@@ -116,8 +116,8 @@
     </div>
 
     <div class="guide-box">
-      💡 <b>배선 구성:</b><br>
-      메인 2차측(하단) $\rightarrow$ 부하 차단기 1차측(상단)으로 정상 연결되어 있습니다.
+      💡 <b>정상 표준 배선 구조 적용:</b><br>
+      메인 2차측(하단) $\rightarrow$ 우회 버스바 $\rightarrow$ 부하 차단기 1차측(상단)으로 깔끔하게 연결되었습니다.
     </div>
   </div>
 
@@ -183,20 +183,20 @@
         { id: 'm_in_n', x: 225, y: 75, radius: 10, type: 'MAIN_IN', line: 'N' },
         
         // Main Breaker Lower (2차측)
-        { id: 'm_out_l', x: 195, y: 165, radius: 10, type: 'BUS', line: 'L' },
-        { id: 'm_out_n', x: 225, y: 165, radius: 10, type: 'BUS', line: 'N' },
+        { id: 'm_out_l', x: 195, y: 160, radius: 10, type: 'BUS', line: 'L' },
+        { id: 'm_out_n', x: 225, y: 160, radius: 10, type: 'BUS', line: 'N' },
 
         // Branch 1 Upper (1차측) / Lower (2차측 부하선)
         { id: 'b1_in_l', x: 295, y: 95, radius: 10, type: 'BUS', line: 'L' },
         { id: 'b1_in_n', x: 325, y: 95, radius: 10, type: 'BUS', line: 'N' },
-        { id: 'b1_out_l', x: 295, y: 165, radius: 10, type: 'LOAD1', line: 'L' },
-        { id: 'b1_out_n', x: 325, y: 165, radius: 10, type: 'LOAD1', line: 'N' },
+        { id: 'b1_out_l', x: 295, y: 160, radius: 10, type: 'LOAD1', line: 'L' },
+        { id: 'b1_out_n', x: 325, y: 160, radius: 10, type: 'LOAD1', line: 'N' },
 
         // Branch 2 Upper (1차측) / Lower (2차측 부하선)
         { id: 'b2_in_l', x: 385, y: 95, radius: 10, type: 'BUS', line: 'L' },
         { id: 'b2_in_n', x: 415, y: 95, radius: 10, type: 'BUS', line: 'N' },
-        { id: 'b2_out_l', x: 385, y: 165, radius: 10, type: 'LOAD2', line: 'L' },
-        { id: 'b2_out_n', x: 415, y: 165, radius: 10, type: 'LOAD2', line: 'N' }
+        { id: 'b2_out_l', x: 385, y: 160, radius: 10, type: 'LOAD2', line: 'L' },
+        { id: 'b2_out_n', x: 415, y: 160, radius: 10, type: 'LOAD2', line: 'N' }
       ];
     }
 
@@ -206,10 +206,10 @@
       const tE = probeE.target;
       const tL = probeL.target;
 
-      // 1. E선과 L선이 모두 접지 단자대에 연결된 경우
+      // 1. 동일 접지선
       if (tE.id === 'earth' && tL.id === 'earth') return 0;
 
-      // 2. 대지 절연저항 측정 (E선 또는 L선이 접지 단자대에 연결)
+      // 2. 대지 절연저항 측정
       if (tE.id === 'earth' || tL.id === 'earth') {
         const activeProbe = (tE.id === 'earth') ? tL : tE;
         let r = 500;
@@ -231,13 +231,11 @@
         return r >= 500 ? '> 500' : r.toFixed(2);
       }
 
-      // 3. 같은 단자를 찍었을 때
+      // 3. 같은 단자
       if (tE.id === tL.id) return 0;
 
-      // 4. 메인 1차측 L-N 선간 측정
-      if (tE.type === 'MAIN_IN' && tL.type === 'MAIN_IN') {
-        return '> 500';
-      }
+      // 4. 선간 측정
+      if (tE.type === 'MAIN_IN' && tL.type === 'MAIN_IN') return '> 500';
 
       return 'ERR';
     }
@@ -245,21 +243,21 @@
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // 1. Distribution Panel Box
+      // 1. 함체
       ctx.strokeStyle = '#475569';
       ctx.lineWidth = 3;
       ctx.strokeRect(150, 10, 330, 230);
       ctx.fillStyle = '#1e293b';
       ctx.fillRect(150, 10, 330, 230);
 
-      // 2. Earth Busbar
+      // 2. 접지 단자대
       ctx.fillStyle = '#16a34a';
       ctx.fillRect(170, 22, 290, 16);
       ctx.fillStyle = '#ffffff';
       ctx.font = 'bold 11px sans-serif';
       ctx.fillText('접지 단자대 (EARTH BUSBAR)', 230, 34);
 
-      // 3. Main Breaker (메인 차단기)
+      // 3. 메인 차단기
       ctx.fillStyle = '#334155';
       ctx.fillRect(180, 60, 60, 115);
       ctx.fillStyle = '#f8fafc';
@@ -271,8 +269,8 @@
       ctx.fillStyle = '#ffffff';
       ctx.fillText(scenario.mainON ? 'ON' : 'OFF', 198, 122);
 
-      // 4. Branch Breakers (부하 차단기)
-      // Branch 1
+      // 4. 부하 차단기
+      // 부하 1
       ctx.fillStyle = '#334155';
       ctx.fillRect(280, 80, 55, 95);
       ctx.fillStyle = '#f8fafc';
@@ -283,7 +281,7 @@
       ctx.fillStyle = '#ffffff';
       ctx.fillText(scenario.b1ON ? 'ON' : 'OFF', 297, 130);
 
-      // Branch 2
+      // 부하 2
       ctx.fillStyle = '#334155';
       ctx.fillRect(370, 80, 55, 95);
       ctx.fillStyle = '#f8fafc';
@@ -293,31 +291,36 @@
       ctx.fillStyle = '#ffffff';
       ctx.fillText(scenario.b2ON ? 'ON' : 'OFF', 387, 130);
 
-      // 5. Internal Busbars (메인 2차측 -> 부하1/2 1차측 상단 연결)
-      // L선 (빨간색 버스바)
-      ctx.strokeStyle = '#ef4444';
+      // 5. 내부 배선 우회 처리 (메인 2차측 -> 차단기 아래 우회 -> 부하 1차측 상단)
       ctx.lineWidth = 3;
+
+      // L선 (빨간색)
+      ctx.strokeStyle = '#ef4444';
       ctx.beginPath();
-      ctx.moveTo(195, 165); // 메인 2차 L
-      ctx.lineTo(195, 200);
-      ctx.lineTo(385, 200);
-      ctx.lineTo(385, 95);  // 부하2 1차 L
-      ctx.moveTo(295, 200);
-      ctx.lineTo(295, 95);  // 부하1 1차 L
+      ctx.moveTo(195, 160);
+      ctx.lineTo(195, 195);
+      ctx.lineTo(260, 195);
+      ctx.lineTo(260, 65);
+      ctx.lineTo(385, 65);
+      ctx.lineTo(385, 95);
+      ctx.moveTo(295, 65);
+      ctx.lineTo(295, 95);
       ctx.stroke();
 
-      // N선 (파란색 버스바)
+      // N선 (파란색)
       ctx.strokeStyle = '#3b82f6';
       ctx.beginPath();
-      ctx.moveTo(225, 165); // 메인 2차 N
-      ctx.lineTo(225, 210);
-      ctx.lineTo(415, 210);
-      ctx.lineTo(415, 95);  // 부하2 1차 N
-      ctx.moveTo(325, 210);
-      ctx.lineTo(325, 95);  // 부하1 1차 N
+      ctx.moveTo(225, 160);
+      ctx.lineTo(225, 208);
+      ctx.lineTo(270, 208);
+      ctx.lineTo(270, 55);
+      ctx.lineTo(415, 55);
+      ctx.lineTo(415, 95);
+      ctx.moveTo(325, 55);
+      ctx.lineTo(325, 95);
       ctx.stroke();
 
-      // 6. Draw Terminals
+      // 6. 단자 그리기
       setupTerminals();
       targetTerminals.forEach(t => {
         ctx.beginPath();
@@ -329,14 +332,14 @@
         ctx.stroke();
       });
 
-      // 7. Megger Instrument
+      // 7. 계측기
       ctx.fillStyle = '#0284c7';
       ctx.fillRect(15, 260, 120, 125);
       ctx.strokeStyle = '#38bdf8';
       ctx.lineWidth = 2;
       ctx.strokeRect(15, 260, 120, 125);
 
-      // Display
+      // 디스플레이
       ctx.fillStyle = '#0f172a';
       ctx.fillRect(25, 270, 100, 36);
       ctx.fillStyle = '#22c55e';
@@ -351,7 +354,7 @@
         ctx.fillText(resVal + ' MΩ', 35, 293);
       }
 
-      // Sockets
+      // 소켓
       ctx.fillStyle = '#16a34a';
       ctx.beginPath(); ctx.arc(35, 325, 8, 0, Math.PI*2); ctx.fill();
       ctx.fillStyle = '#ffffff'; ctx.font = 'bold 10px sans-serif'; ctx.fillText('E', 32, 328);
@@ -360,7 +363,7 @@
       ctx.beginPath(); ctx.arc(115, 325, 8, 0, Math.PI*2); ctx.fill();
       ctx.fillStyle = '#ffffff'; ctx.fillText('L', 112, 328);
 
-      // Wires & Probes
+      // 측정 리드선
       drawLeadWire(35, 325, probeE.x, probeE.y, '#16a34a');
       drawLeadWire(115, 325, probeL.x, probeL.y, '#dc2626');
 
