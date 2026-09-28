@@ -116,8 +116,8 @@
     </div>
 
     <div class="guide-box">
-      💡 <b>터치 조작 안내:</b><br>
-      [E선] 또는 [L선] 선택 버튼을 누른 후, 연결하고 싶은 <b>차단기 단자</b>나 <b>접지 단자대</b>를 터치하면 선이 바로 연결됩니다!
+      💡 <b>점검 팁:</b><br>
+      E(접지)선을 접지 단자대에 고정하고, L(라인)선으로 메인 1차측(L/N 단자) 및 부하 측을 측정해 보세요.
     </div>
   </div>
 
@@ -133,8 +133,8 @@
     let scenario = {};
     let targetTerminals = [];
     
-    let probeE = { x: 50, y: 360, target: null };
-    let probeL = { x: 100, y: 360, target: null };
+    let probeE = { x: 45, y: 360, target: null };
+    let probeL = { x: 95, y: 360, target: null };
 
     let draggingProbe = null;
 
@@ -178,23 +178,25 @@
         // Earth Busbar
         { id: 'earth', x: 310, y: 30, radius: 15, type: 'EARTH' },
         
-        // Main Breaker Upper/Lower
-        { id: 'm_in_l', x: 200, y: 80, radius: 10, type: 'MAIN_IN' },
-        { id: 'm_in_n', x: 220, y: 80, radius: 10, type: 'MAIN_IN' },
-        { id: 'm_out_l', x: 200, y: 160, radius: 10, type: 'BUS' },
-        { id: 'm_out_n', x: 220, y: 160, radius: 10, type: 'BUS' },
+        // Main Breaker Upper (1차측 L, N)
+        { id: 'm_in_l', x: 195, y: 80, radius: 10, type: 'MAIN_IN', line: 'L' },
+        { id: 'm_in_n', x: 225, y: 80, radius: 10, type: 'MAIN_IN', line: 'N' },
+        
+        // Main Breaker Lower (2차측 버스바)
+        { id: 'm_out_l', x: 195, y: 160, radius: 10, type: 'BUS', line: 'L' },
+        { id: 'm_out_n', x: 225, y: 160, radius: 10, type: 'BUS', line: 'N' },
 
         // Branch 1 Upper/Lower
-        { id: 'b1_in_l', x: 300, y: 100, radius: 10, type: 'BUS' },
-        { id: 'b1_in_n', x: 320, y: 100, radius: 10, type: 'BUS' },
-        { id: 'b1_out_l', x: 300, y: 160, radius: 10, type: 'LOAD1' },
-        { id: 'b1_out_n', x: 320, y: 160, radius: 10, type: 'LOAD1' },
+        { id: 'b1_in_l', x: 295, y: 100, radius: 10, type: 'BUS', line: 'L' },
+        { id: 'b1_in_n', x: 325, y: 100, radius: 10, type: 'BUS', line: 'N' },
+        { id: 'b1_out_l', x: 295, y: 160, radius: 10, type: 'LOAD1', line: 'L' },
+        { id: 'b1_out_n', x: 325, y: 160, radius: 10, type: 'LOAD1', line: 'N' },
 
         // Branch 2 Upper/Lower
-        { id: 'b2_in_l', x: 390, y: 100, radius: 10, type: 'BUS' },
-        { id: 'b2_in_n', x: 410, y: 100, radius: 10, type: 'BUS' },
-        { id: 'b2_out_l', x: 390, y: 160, radius: 10, type: 'LOAD2' },
-        { id: 'b2_out_n', x: 410, y: 160, radius: 10, type: 'LOAD2' }
+        { id: 'b2_in_l', x: 385, y: 100, radius: 10, type: 'BUS', line: 'L' },
+        { id: 'b2_in_n', x: 415, y: 100, radius: 10, type: 'BUS', line: 'N' },
+        { id: 'b2_out_l', x: 385, y: 160, radius: 10, type: 'LOAD2', line: 'L' },
+        { id: 'b2_out_n', x: 415, y: 160, radius: 10, type: 'LOAD2', line: 'N' }
       ];
     }
 
@@ -204,31 +206,42 @@
       const tE = probeE.target;
       const tL = probeL.target;
 
-      if (tE.id !== 'earth' && tL.id !== 'earth') {
-        return 'ERR';
-      }
+      // 1. E선과 L선이 모두 접지 단자대에 연결된 경우
+      if (tE.id === 'earth' && tL.id === 'earth') return 0;
 
-      const activeProbe = (tE.id === 'earth') ? tL : tE;
+      // 2. 한쪽이 접지 단자대인 일반 대지 절연저항 측정
+      if (tE.id === 'earth' || tL.id === 'earth') {
+        const activeProbe = (tE.id === 'earth') ? tL : tE;
+        let r = 500;
 
-      if (activeProbe.id === 'earth') return 0;
-
-      let r = 500;
-
-      if (activeProbe.type === 'LOAD1') {
-        r = Math.min(r, scenario.rLoad1);
-      } else if (activeProbe.type === 'LOAD2') {
-        r = Math.min(r, scenario.rLoad2);
-      } else if (activeProbe.type === 'BUS') {
-        if (scenario.b1ON) r = Math.min(r, scenario.rLoad1);
-        if (scenario.b2ON) r = Math.min(r, scenario.rLoad2);
-      } else if (activeProbe.type === 'MAIN_IN') {
-        if (scenario.mainON) {
+        if (activeProbe.type === 'MAIN_IN') {
+          // 메인 1차측은 메인 스위치가 ON일 때만 부하측 절연저항 영향 받음
+          if (scenario.mainON) {
+            if (scenario.b1ON) r = Math.min(r, scenario.rLoad1);
+            if (scenario.b2ON) r = Math.min(r, scenario.rLoad2);
+          }
+        } else if (activeProbe.type === 'BUS') {
           if (scenario.b1ON) r = Math.min(r, scenario.rLoad1);
           if (scenario.b2ON) r = Math.min(r, scenario.rLoad2);
+        } else if (activeProbe.type === 'LOAD1') {
+          r = Math.min(r, scenario.rLoad1);
+        } else if (activeProbe.type === 'LOAD2') {
+          r = Math.min(r, scenario.rLoad2);
         }
+
+        return r >= 500 ? '> 500' : r.toFixed(2);
       }
 
-      return r >= 500 ? '> 500' : r.toFixed(2);
+      // 3. 접지 단자대 없이 단자 간(L-N 등) 선간 측정을 수행하는 경우
+      // 같은 단자 찍었을 때
+      if (tE.id === tL.id) return 0;
+
+      // 메인 1차측 L-N 선간 측정 시
+      if (tE.type === 'MAIN_IN' && tL.type === 'MAIN_IN') {
+        return '> 500'; // 전원 측 절연 양호
+      }
+
+      return 'ERR';
     }
 
     function draw() {
@@ -260,39 +273,46 @@
       ctx.fillStyle = '#ffffff';
       ctx.fillText(scenario.mainON ? 'ON' : 'OFF', 198, 122);
 
+      // 1차측 L/N 표시
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '9px sans-serif';
+      ctx.fillText('L', 192, 76);
+      ctx.fillText('N', 222, 76);
+
       // 4. Branch Breakers
       // Branch 1
       ctx.fillStyle = '#334155';
-      ctx.fillRect(285, 85, 50, 90);
+      ctx.fillRect(280, 85, 55, 90);
       ctx.fillStyle = '#f8fafc';
-      ctx.fillText('부하1', 295, 78);
+      ctx.font = 'bold 11px sans-serif';
+      ctx.fillText('부하1', 292, 78);
       ctx.fillStyle = scenario.b1ON ? '#22c55e' : '#ef4444';
-      ctx.fillRect(298, 115, 24, 22);
+      ctx.fillRect(295, 115, 25, 22);
       ctx.fillStyle = '#ffffff';
-      ctx.fillText(scenario.b1ON ? 'ON' : 'OFF', 300, 130);
+      ctx.fillText(scenario.b1ON ? 'ON' : 'OFF', 297, 130);
 
       // Branch 2
       ctx.fillStyle = '#334155';
-      ctx.fillRect(375, 85, 50, 90);
+      ctx.fillRect(370, 85, 55, 90);
       ctx.fillStyle = '#f8fafc';
-      ctx.fillText('부하2', 385, 78);
+      ctx.fillText('부하2', 382, 78);
       ctx.fillStyle = scenario.b2ON ? '#22c55e' : '#ef4444';
-      ctx.fillRect(388, 115, 24, 22);
+      ctx.fillRect(385, 115, 25, 22);
       ctx.fillStyle = '#ffffff';
-      ctx.fillText(scenario.b2ON ? 'ON' : 'OFF', 390, 130);
+      ctx.fillText(scenario.b2ON ? 'ON' : 'OFF', 387, 130);
 
       // 5. Internal Busbars
-      ctx.strokeStyle = '#ef4444';
+      ctx.strokeStyle = '#ef4444'; // L선 (빨간색)
       ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.moveTo(200, 160); ctx.lineTo(200, 195); ctx.lineTo(390, 195); ctx.lineTo(390, 100);
-      ctx.moveTo(300, 195); ctx.lineTo(300, 100);
+      ctx.moveTo(195, 160); ctx.lineTo(195, 195); ctx.lineTo(385, 195); ctx.lineTo(385, 100);
+      ctx.moveTo(295, 195); ctx.lineTo(295, 100);
       ctx.stroke();
 
-      ctx.strokeStyle = '#3b82f6';
+      ctx.strokeStyle = '#3b82f6'; // N선 (파란색)
       ctx.beginPath();
-      ctx.moveTo(220, 160); ctx.lineTo(220, 205); ctx.lineTo(410, 205); ctx.lineTo(410, 100);
-      ctx.moveTo(320, 205); ctx.lineTo(320, 100);
+      ctx.moveTo(225, 160); ctx.lineTo(225, 205); ctx.lineTo(415, 205); ctx.lineTo(415, 100);
+      ctx.moveTo(325, 205); ctx.lineTo(325, 100);
       ctx.stroke();
 
       // 6. Draw Terminals
@@ -307,14 +327,14 @@
         ctx.stroke();
       });
 
-      // 7. Megger Instrument (Left Bottom)
+      // 7. Megger Instrument
       ctx.fillStyle = '#0284c7';
       ctx.fillRect(15, 260, 120, 125);
       ctx.strokeStyle = '#38bdf8';
       ctx.lineWidth = 2;
       ctx.strokeRect(15, 260, 120, 125);
 
-      // Megger Display
+      // Display
       ctx.fillStyle = '#0f172a';
       ctx.fillRect(25, 270, 100, 36);
       ctx.fillStyle = '#22c55e';
@@ -329,7 +349,7 @@
         ctx.fillText(resVal + ' MΩ', 35, 293);
       }
 
-      // Megger Sockets
+      // Sockets
       ctx.fillStyle = '#16a34a';
       ctx.beginPath(); ctx.arc(35, 325, 8, 0, Math.PI*2); ctx.fill();
       ctx.fillStyle = '#ffffff'; ctx.font = 'bold 10px sans-serif'; ctx.fillText('E', 32, 328);
@@ -338,7 +358,7 @@
       ctx.beginPath(); ctx.arc(115, 325, 8, 0, Math.PI*2); ctx.fill();
       ctx.fillStyle = '#ffffff'; ctx.fillText('L', 112, 328);
 
-      // 8. Wires & Probes
+      // Wires & Probes
       drawLeadWire(35, 325, probeE.x, probeE.y, '#16a34a');
       drawLeadWire(115, 325, probeL.x, probeL.y, '#dc2626');
 
@@ -385,10 +405,10 @@
       if (pos.x >= 195 && pos.x <= 225 && pos.y >= 105 && pos.y <= 131) {
         scenario.mainON = !scenario.mainON; draw(); return;
       }
-      if (pos.x >= 298 && pos.x <= 322 && pos.y >= 115 && pos.y <= 137) {
+      if (pos.x >= 295 && pos.x <= 320 && pos.y >= 115 && pos.y <= 137) {
         scenario.b1ON = !scenario.b1ON; draw(); return;
       }
-      if (pos.x >= 388 && pos.x <= 412 && pos.y >= 115 && pos.y <= 137) {
+      if (pos.x >= 385 && pos.x <= 410 && pos.y >= 115 && pos.y <= 137) {
         scenario.b2ON = !scenario.b2ON; draw(); return;
       }
 
