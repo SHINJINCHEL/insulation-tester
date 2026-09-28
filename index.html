@@ -2,10 +2,10 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>실전 단상 분전함 & 메거 절연저항 시뮬레이터</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>단상 분전함 & 메거 절연저항 시뮬레이터</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
     body {
       background-color: #0f172a;
       color: #f8fafc;
@@ -14,30 +14,30 @@
       flex-direction: column;
       align-items: center;
       min-height: 100vh;
-      padding: 10px;
+      padding: 12px;
     }
     header {
       text-align: center;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
       width: 100%;
-      max-width: 600px;
+      max-width: 500px;
     }
     header h1 { font-size: 1.1rem; color: #38bdf8; margin-bottom: 4px; }
-    header p { font-size: 0.75rem; color: #94a3b8; }
+    header p { font-size: 0.8rem; color: #94a3b8; }
     
     .main-container {
       width: 100%;
-      max-width: 600px;
+      max-width: 500px;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 12px;
     }
     
     .canvas-card {
       background-color: #1e293b;
       border-radius: 12px;
-      padding: 8px;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+      padding: 6px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
       display: flex;
       justify-content: center;
       align-items: center;
@@ -49,7 +49,6 @@
       border-radius: 8px;
       width: 100%;
       height: auto;
-      max-width: 100%;
       display: block;
     }
     
@@ -58,7 +57,7 @@
       flex-direction: column;
       gap: 8px;
       background-color: #1e293b;
-      padding: 10px;
+      padding: 12px;
       border-radius: 12px;
     }
     
@@ -69,28 +68,28 @@
     
     button {
       flex: 1;
-      padding: 10px 4px;
+      padding: 12px 6px;
       border: none;
-      border-radius: 6px;
+      border-radius: 8px;
       font-weight: bold;
       font-size: 0.85rem;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.15s ease;
     }
     
     .btn-e { background-color: #16a34a; color: white; }
-    .btn-e.active { ring: 3px solid #86efac; background-color: #15803d; }
+    .btn-e.active { outline: 3px solid #86efac; background-color: #15803d; }
     .btn-l { background-color: #dc2626; color: white; }
-    .btn-l.active { ring: 3px solid #fca5a5; background-color: #b91c1c; }
+    .btn-l.active { outline: 3px solid #fca5a5; background-color: #b91c1c; }
     .btn-reset { background-color: #0284c7; color: white; margin-top: 2px; }
-    button:active { transform: scale(0.98); }
+    button:active { transform: scale(0.97); }
     
     .guide-box {
-      background-color: #0284c715;
+      background-color: rgba(2, 132, 199, 0.1);
       border-left: 4px solid #38bdf8;
-      padding: 8px 12px;
-      border-radius: 4px;
-      font-size: 0.75rem;
+      padding: 10px;
+      border-radius: 6px;
+      font-size: 0.78rem;
       color: #e2e8f0;
       line-height: 1.4;
     }
@@ -105,7 +104,7 @@
 
   <div class="main-container">
     <div class="canvas-card">
-      <canvas id="simCanvas" width="560" height="420"></canvas>
+      <canvas id="simCanvas" width="500" height="400"></canvas>
     </div>
 
     <div class="controls">
@@ -126,37 +125,32 @@
     const canvas = document.getElementById('simCanvas');
     const ctx = canvas.getContext('2d');
 
-    // UI Buttons
     const btnSelectE = document.getElementById('btnSelectE');
     const btnSelectL = document.getElementById('btnSelectL');
     const btnReset = document.getElementById('btnReset');
 
-    let activeLead = null; // 'E' or 'L' or null
-
-    // State Variables
+    let activeLead = null; 
     let scenario = {};
     let targetTerminals = [];
     
-    // Probes default pos
-    let probeE = { x: 50, y: 380, target: null };
-    let probeL = { x: 100, y: 380, target: null };
+    let probeE = { x: 50, y: 360, target: null };
+    let probeL = { x: 100, y: 360, target: null };
 
     let draggingProbe = null;
 
     function initScenario() {
-      // 0: Normal, 1: Load1 Shorted, 2: Load2 Low Insulation
       const type = Math.floor(Math.random() * 3);
       scenario = {
         type: type,
         mainON: false,
         b1ON: false,
         b2ON: false,
-        rLoad1: type === 1 ? 0.02 : 500, // MΩ
-        rLoad2: type === 2 ? 0.15 : 500  // MΩ
+        rLoad1: type === 1 ? 0.02 : 500,
+        rLoad2: type === 2 ? 0.15 : 500
       };
 
-      probeE = { x: 60, y: 380, target: null };
-      probeL = { x: 120, y: 380, target: null };
+      probeE = { x: 45, y: 360, target: null };
+      probeL = { x: 95, y: 360, target: null };
       activeLead = null;
       updateButtonStyles();
       draw();
@@ -182,28 +176,25 @@
     function setupTerminals() {
       targetTerminals = [
         // Earth Busbar
-        { id: 'earth', x: 280, y: 45, radius: 15, type: 'EARTH' },
+        { id: 'earth', x: 310, y: 30, radius: 15, type: 'EARTH' },
         
-        // Main Breaker Upper
-        { id: 'm_in_l', x: 200, y: 130, radius: 12, type: 'MAIN_IN' },
-        { id: 'm_in_n', x: 230, y: 130, radius: 12, type: 'MAIN_IN' },
-        // Main Breaker Lower
-        { id: 'm_out_l', x: 200, y: 220, radius: 12, type: 'BUS' },
-        { id: 'm_out_n', x: 230, y: 220, radius: 12, type: 'BUS' },
+        // Main Breaker Upper/Lower
+        { id: 'm_in_l', x: 200, y: 80, radius: 10, type: 'MAIN_IN' },
+        { id: 'm_in_n', x: 220, y: 80, radius: 10, type: 'MAIN_IN' },
+        { id: 'm_out_l', x: 200, y: 160, radius: 10, type: 'BUS' },
+        { id: 'm_out_n', x: 220, y: 160, radius: 10, type: 'BUS' },
 
-        // Branch 1 Upper
-        { id: 'b1_in_l', x: 300, y: 150, radius: 10, type: 'BUS' },
-        { id: 'b1_in_n', x: 325, y: 150, radius: 10, type: 'BUS' },
-        // Branch 1 Lower
-        { id: 'b1_out_l', x: 300, y: 220, radius: 10, type: 'LOAD1' },
-        { id: 'b1_out_n', x: 325, y: 220, radius: 10, type: 'LOAD1' },
+        // Branch 1 Upper/Lower
+        { id: 'b1_in_l', x: 300, y: 100, radius: 10, type: 'BUS' },
+        { id: 'b1_in_n', x: 320, y: 100, radius: 10, type: 'BUS' },
+        { id: 'b1_out_l', x: 300, y: 160, radius: 10, type: 'LOAD1' },
+        { id: 'b1_out_n', x: 320, y: 160, radius: 10, type: 'LOAD1' },
 
-        // Branch 2 Upper
-        { id: 'b2_in_l', x: 380, y: 150, radius: 10, type: 'BUS' },
-        { id: 'b2_in_n', x: 405, y: 150, radius: 10, type: 'BUS' },
-        // Branch 2 Lower
-        { id: 'b2_out_l', x: 380, y: 220, radius: 10, type: 'LOAD2' },
-        { id: 'b2_out_n', x: 405, y: 220, radius: 10, type: 'LOAD2' }
+        // Branch 2 Upper/Lower
+        { id: 'b2_in_l', x: 390, y: 100, radius: 10, type: 'BUS' },
+        { id: 'b2_in_n', x: 410, y: 100, radius: 10, type: 'BUS' },
+        { id: 'b2_out_l', x: 390, y: 160, radius: 10, type: 'LOAD2' },
+        { id: 'b2_out_n', x: 410, y: 160, radius: 10, type: 'LOAD2' }
       ];
     }
 
@@ -213,18 +204,16 @@
       const tE = probeE.target;
       const tL = probeL.target;
 
-      // Must have Earth connected to Earth Busbar for valid insulation test
       if (tE.id !== 'earth' && tL.id !== 'earth') {
-        return 'ERR'; // Improper connection
+        return 'ERR';
       }
 
       const activeProbe = (tE.id === 'earth') ? tL : tE;
 
       if (activeProbe.id === 'earth') return 0;
 
-      let r = 500; // Normal infinity approx
+      let r = 500;
 
-      // Check connections based on breaker states
       if (activeProbe.type === 'LOAD1') {
         r = Math.min(r, scenario.rLoad1);
       } else if (activeProbe.type === 'LOAD2') {
@@ -245,114 +234,113 @@
     function draw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // 1. Draw Panel Frame
-      ctx.strokeStyle = '#334155';
-      ctx.lineWidth = 4;
-      ctx.strokeRect(150, 20, 390, 260);
+      // 1. Distribution Panel Box
+      ctx.strokeStyle = '#475569';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(150, 10, 330, 230);
       ctx.fillStyle = '#1e293b';
-      ctx.fillRect(150, 20, 390, 260);
+      ctx.fillRect(150, 10, 330, 230);
 
       // 2. Earth Busbar
       ctx.fillStyle = '#16a34a';
-      ctx.fillRect(180, 35, 330, 15);
+      ctx.fillRect(170, 22, 290, 16);
       ctx.fillStyle = '#ffffff';
-      ctx.font = '10px sans-serif';
-      ctx.fillText('접지 단자대 (EARTH BUSBAR)', 260, 47);
+      ctx.font = 'bold 11px sans-serif';
+      ctx.fillText('접지 단자대 (EARTH BUSBAR)', 230, 34);
 
-      // 3. Main Breaker (MCCB/ELCB)
+      // 3. Main Breaker
       ctx.fillStyle = '#334155';
-      ctx.fillRect(185, 110, 60, 130);
+      ctx.fillRect(180, 65, 60, 110);
       ctx.fillStyle = '#f8fafc';
       ctx.font = 'bold 11px sans-serif';
-      ctx.fillText('메인', 202, 100);
+      ctx.fillText('메인', 198, 60);
 
-      // Main Switch
       ctx.fillStyle = scenario.mainON ? '#22c55e' : '#ef4444';
-      ctx.fillRect(202, 160, 26, 30);
+      ctx.fillRect(195, 105, 30, 26);
       ctx.fillStyle = '#ffffff';
-      ctx.fillText(scenario.mainON ? 'ON' : 'OFF', 206, 178);
+      ctx.fillText(scenario.mainON ? 'ON' : 'OFF', 198, 122);
 
       // 4. Branch Breakers
       // Branch 1
-      ctx.fillStyle = '#475569';
-      ctx.fillRect(285, 135, 50, 100);
+      ctx.fillStyle = '#334155';
+      ctx.fillRect(285, 85, 50, 90);
       ctx.fillStyle = '#f8fafc';
-      ctx.fillText('부하1', 295, 125);
+      ctx.fillText('부하1', 295, 78);
       ctx.fillStyle = scenario.b1ON ? '#22c55e' : '#ef4444';
-      ctx.fillRect(298, 170, 24, 24);
+      ctx.fillRect(298, 115, 24, 22);
       ctx.fillStyle = '#ffffff';
-      ctx.fillText(scenario.b1ON ? 'ON' : 'OFF', 300, 186);
+      ctx.fillText(scenario.b1ON ? 'ON' : 'OFF', 300, 130);
 
       // Branch 2
-      ctx.fillStyle = '#475569';
-      ctx.fillRect(365, 135, 50, 100);
+      ctx.fillStyle = '#334155';
+      ctx.fillRect(375, 85, 50, 90);
       ctx.fillStyle = '#f8fafc';
-      ctx.fillText('부하2', 375, 125);
+      ctx.fillText('부하2', 385, 78);
       ctx.fillStyle = scenario.b2ON ? '#22c55e' : '#ef4444';
-      ctx.fillRect(378, 170, 24, 24);
+      ctx.fillRect(388, 115, 24, 22);
       ctx.fillStyle = '#ffffff';
-      ctx.fillText(scenario.b2ON ? 'ON' : 'OFF', 380, 186);
+      ctx.fillText(scenario.b2ON ? 'ON' : 'OFF', 390, 130);
 
-      // 5. Busbars (Internal Wiring)
-      ctx.strokeStyle = '#ef4444'; // Live Line Bus
+      // 5. Internal Busbars
+      ctx.strokeStyle = '#ef4444';
       ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.moveTo(200, 220); ctx.lineTo(200, 255); ctx.lineTo(380, 255); ctx.lineTo(380, 150);
-      ctx.moveTo(300, 255); ctx.lineTo(300, 150);
+      ctx.moveTo(200, 160); ctx.lineTo(200, 195); ctx.lineTo(390, 195); ctx.lineTo(390, 100);
+      ctx.moveTo(300, 195); ctx.lineTo(300, 100);
       ctx.stroke();
 
-      ctx.strokeStyle = '#3b82f6'; // Neutral Line Bus
+      ctx.strokeStyle = '#3b82f6';
       ctx.beginPath();
-      ctx.moveTo(230, 220); ctx.lineTo(230, 265); ctx.lineTo(405, 265); ctx.lineTo(405, 150);
-      ctx.moveTo(325, 265); ctx.lineTo(325, 150);
+      ctx.moveTo(220, 160); ctx.lineTo(220, 205); ctx.lineTo(410, 205); ctx.lineTo(410, 100);
+      ctx.moveTo(320, 205); ctx.lineTo(320, 100);
       ctx.stroke();
 
-      // 6. Terminals
+      // 6. Draw Terminals
       setupTerminals();
       targetTerminals.forEach(t => {
         ctx.beginPath();
         ctx.arc(t.x, t.y, 5, 0, Math.PI * 2);
-        ctx.fillStyle = '#cbd5e1';
+        ctx.fillStyle = '#f8fafc';
         ctx.fill();
         ctx.strokeStyle = '#0f172a';
-        ctx.lineWidth = 1;
+        ctx.lineWidth = 1.5;
         ctx.stroke();
       });
 
-      // 7. Megger Instrument (Left Side)
+      // 7. Megger Instrument (Left Bottom)
       ctx.fillStyle = '#0284c7';
-      ctx.fillRect(15, 290, 130, 115);
+      ctx.fillRect(15, 260, 120, 125);
       ctx.strokeStyle = '#38bdf8';
       ctx.lineWidth = 2;
-      ctx.strokeRect(15, 290, 130, 115);
+      ctx.strokeRect(15, 260, 120, 125);
 
       // Megger Display
       ctx.fillStyle = '#0f172a';
-      ctx.fillRect(25, 300, 110, 40);
+      ctx.fillRect(25, 270, 100, 36);
       ctx.fillStyle = '#22c55e';
-      ctx.font = 'bold 16px monospace';
+      ctx.font = 'bold 14px monospace';
       const resVal = calculateResistance();
       if (resVal === '---') {
-        ctx.fillText('--- MΩ', 45, 325);
+        ctx.fillText('--- MΩ', 45, 293);
       } else if (resVal === 'ERR') {
         ctx.fillStyle = '#ef4444';
-        ctx.fillText('CONN ERR', 32, 325);
+        ctx.fillText('CONN ERR', 32, 293);
       } else {
-        ctx.fillText(resVal + ' MΩ', 35, 325);
+        ctx.fillText(resVal + ' MΩ', 35, 293);
       }
 
       // Megger Sockets
       ctx.fillStyle = '#16a34a';
-      ctx.beginPath(); ctx.arc(45, 360, 8, 0, Math.PI*2); ctx.fill();
-      ctx.fillStyle = '#ffffff'; ctx.font = '10px sans-serif'; ctx.fillText('E', 42, 363);
+      ctx.beginPath(); ctx.arc(35, 325, 8, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#ffffff'; ctx.font = 'bold 10px sans-serif'; ctx.fillText('E', 32, 328);
 
       ctx.fillStyle = '#dc2626';
-      ctx.beginPath(); ctx.arc(115, 360, 8, 0, Math.PI*2); ctx.fill();
-      ctx.fillStyle = '#ffffff'; ctx.fillText('L', 112, 363);
+      ctx.beginPath(); ctx.arc(115, 325, 8, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#ffffff'; ctx.fillText('L', 112, 328);
 
-      // 8. Lead Wires & Probes
-      drawLeadWire(45, 360, probeE.x, probeE.y, '#16a34a');
-      drawLeadWire(115, 360, probeL.x, probeL.y, '#dc2626');
+      // 8. Wires & Probes
+      drawLeadWire(35, 325, probeE.x, probeE.y, '#16a34a');
+      drawLeadWire(115, 325, probeL.x, probeL.y, '#dc2626');
 
       drawProbeTip(probeE.x, probeE.y, '#16a34a', 'E');
       drawProbeTip(probeL.x, probeL.y, '#dc2626', 'L');
@@ -363,7 +351,7 @@
       ctx.lineWidth = 3;
       ctx.beginPath();
       ctx.moveTo(sx, sy);
-      ctx.bezierCurveTo(sx, sy + 40, ex, ey + 40, ex, ey);
+      ctx.bezierCurveTo(sx, sy + 30, ex, ey + 30, ex, ey);
       ctx.stroke();
     }
 
@@ -377,11 +365,10 @@
       ctx.stroke();
 
       ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 11px sans-serif';
-      ctx.fillText(label, x - 4, y + 4);
+      ctx.font = 'bold 10px sans-serif';
+      ctx.fillText(label, x - 4, y + 3);
     }
 
-    // Interactive Touch & Mouse Handling
     function getCanvasPos(e) {
       const rect = canvas.getBoundingClientRect();
       const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -395,21 +382,16 @@
     }
 
     function handleStart(pos) {
-      // Toggle switches
-      if (pos.x >= 202 && pos.x <= 228 && pos.y >= 160 && pos.y <= 190) {
-        scenario.mainON = !scenario.mainON;
-        draw(); return;
+      if (pos.x >= 195 && pos.x <= 225 && pos.y >= 105 && pos.y <= 131) {
+        scenario.mainON = !scenario.mainON; draw(); return;
       }
-      if (pos.x >= 298 && pos.x <= 322 && pos.y >= 170 && pos.y <= 194) {
-        scenario.b1ON = !scenario.b1ON;
-        draw(); return;
+      if (pos.x >= 298 && pos.x <= 322 && pos.y >= 115 && pos.y <= 137) {
+        scenario.b1ON = !scenario.b1ON; draw(); return;
       }
-      if (pos.x >= 378 && pos.x <= 402 && pos.y >= 170 && pos.y <= 194) {
-        scenario.b2ON = !scenario.b2ON;
-        draw(); return;
+      if (pos.x >= 388 && pos.x <= 412 && pos.y >= 115 && pos.y <= 137) {
+        scenario.b2ON = !scenario.b2ON; draw(); return;
       }
 
-      // Button-selected terminal tap mode
       if (activeLead) {
         const hitTerminal = targetTerminals.find(t => Math.hypot(t.x - pos.x, t.y - pos.y) < 25);
         if (hitTerminal) {
@@ -425,7 +407,6 @@
         }
       }
 
-      // Dragging probes directly
       if (Math.hypot(probeE.x - pos.x, probeE.y - pos.y) < 25) {
         draggingProbe = 'E';
       } else if (Math.hypot(probeL.x - pos.x, probeL.y - pos.y) < 25) {
@@ -468,7 +449,6 @@
     canvas.addEventListener('touchmove', (e) => { e.preventDefault(); handleMove(getCanvasPos(e)); }, { passive: false });
     canvas.addEventListener('touchend', handleEnd);
 
-    // Initial setup
     initScenario();
   </script>
 </body>
