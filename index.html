@@ -1,190 +1,475 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>분전함 & 메거 절연저항 시뮬레이터</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
-        body { background-color: #0f172a; color: #f8fafc; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; padding: 10px; }
-        .header { text-align: center; margin-bottom: 10px; width: 100%; max-width: 900px; }
-        .header h1 { font-size: 1.2rem; color: #38bdf8; margin-bottom: 4px; }
-        .header p { font-size: 0.8rem; color: #94a3b8; }
-        
-        /* 모바일 최적화 메인 컨테이너 */
-        .main-container { width: 100%; max-width: 900px; display: flex; flex-direction: column; gap: 10px; }
-        
-        /* 캔버스 래퍼 (비율 유지 및 스크롤 방지) */
-        .canvas-wrapper {
-            position: relative;
-            width: 100%;
-            background: #1e293b;
-            border-radius: 12px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-            overflow: hidden;
-            touch-action: none; /* 모바일 드래그 시 화면 스크롤 방지 */
-        }
-        canvas { display: block; width: 100%; height: auto; aspect-ratio: 900 / 500; }
-        
-        /* 모바일 터치 가이드 및 조작 패널 */
-        .controls { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; background: #1e293b; padding: 10px; border-radius: 8px; }
-        .btn { padding: 8px 14px; border: none; border-radius: 6px; font-weight: bold; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; }
-        .btn-reset { background: #0284c7; color: white; }
-        .btn-reset:active { background: #0369a1; }
-        .btn-probe { background: #334155; color: white; border: 1px solid #475569; }
-        .btn-probe.active-e { background: #16a34a; border-color: #4ade80; }
-        .btn-probe.active-l { background: #dc2626; border-color: #f87171; }
-        
-        .guide-box { background: #0f172a; border-left: 4px solid #38bdf8; padding: 8px 12px; font-size: 0.78rem; color: #cbd5e1; border-radius: 4px; width: 100%; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>실전 단상 분전함 & 메거 절연저항 시뮬레이터</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+    body {
+      background-color: #0f172a;
+      color: #f8fafc;
+      font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+      padding: 10px;
+    }
+    header {
+      text-align: center;
+      margin-bottom: 10px;
+      width: 100%;
+      max-width: 600px;
+    }
+    header h1 { font-size: 1.1rem; color: #38bdf8; margin-bottom: 4px; }
+    header p { font-size: 0.75rem; color: #94a3b8; }
+    
+    .main-container {
+      width: 100%;
+      max-width: 600px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    
+    .canvas-card {
+      background-color: #1e293b;
+      border-radius: 12px;
+      padding: 8px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      touch-action: none;
+    }
+    
+    canvas {
+      background-color: #111827;
+      border-radius: 8px;
+      width: 100%;
+      height: auto;
+      max-width: 100%;
+      display: block;
+    }
+    
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      background-color: #1e293b;
+      padding: 10px;
+      border-radius: 12px;
+    }
+    
+    .btn-group {
+      display: flex;
+      gap: 8px;
+    }
+    
+    button {
+      flex: 1;
+      padding: 10px 4px;
+      border: none;
+      border-radius: 6px;
+      font-weight: bold;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .btn-e { background-color: #16a34a; color: white; }
+    .btn-e.active { ring: 3px solid #86efac; background-color: #15803d; }
+    .btn-l { background-color: #dc2626; color: white; }
+    .btn-l.active { ring: 3px solid #fca5a5; background-color: #b91c1c; }
+    .btn-reset { background-color: #0284c7; color: white; margin-top: 2px; }
+    button:active { transform: scale(0.98); }
+    
+    .guide-box {
+      background-color: #0284c715;
+      border-left: 4px solid #38bdf8;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      color: #e2e8f0;
+      line-height: 1.4;
+    }
+  </style>
 </head>
 <body>
 
-<div class="header">
-    <h1>⚡ 실전 단상 분전함 & 메거 절연저항 시뮬레이터</h1>
-    <p>손가락으로 리드선을 끌어다 놓거나, 아래 선택 버튼을 누른 후 단자를 터치하세요.</p>
-</div>
+  <header>
+    <h1>⚡ 실전 단상 분전함 & 메거 시뮬레이터</h1>
+    <p>손가락 터치/드래그로 리드선을 단자에 연결하세요.</p>
+  </header>
 
-<div class="main-container">
-    <div class="canvas-wrapper">
-        <canvas id="simCanvas" width="900" height="500"></canvas>
+  <div class="main-container">
+    <div class="canvas-card">
+      <canvas id="simCanvas" width="560" height="420"></canvas>
     </div>
 
     <div class="controls">
-        <button class="btn btn-probe" id="btnSelectE">E(접지) 리드선 선택</button>
-        <button class="btn btn-probe" id="btnSelectL">L(라인) 리드선 선택</button>
-        <button class="btn btn-reset" id="btnReset">새로운 시나리오 (리셋)</button>
+      <div class="btn-group">
+        <button id="btnSelectE" class="btn-e">E(접지) 리드선 터치선택</button>
+        <button id="btnSelectL" class="btn-l">L(라인) 리드선 터치선택</button>
+      </div>
+      <button id="btnReset" class="btn-reset">새로운 시나리오 (리셋)</button>
     </div>
 
     <div class="guide-box">
-        💡 <b>모바일 조작 팁:</b> 드래그가 어려운 경우 <b>[E/L 리드선 선택]</b> 버튼을 누른 뒤, 연결하고 싶은 차단기 단자나 접지 단대(BUSBAR)를 터치하면 바로 연결됩니다.
+      💡 <b>터치 조작 안내:</b><br>
+      [E선] 또는 [L선] 선택 버튼을 누른 후, 연결하고 싶은 <b>차단기 단자</b>나 <b>접지 단자대</b>를 터치하면 선이 바로 연결됩니다!
     </div>
-</div>
+  </div>
 
-<script>
-const canvas = document.getElementById('simCanvas');
-const ctx = canvas.getContext('2d');
+  <script>
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
 
-// 상태 및 위치 데이터
-let activeProbe = null; // 터치 선택 모드용 ('E' 또는 'L')
-let selectedTarget = null;
+    // UI Buttons
+    const btnSelectE = document.getElementById('btnSelectE');
+    const btnSelectL = document.getElementById('btnSelectL');
+    const btnReset = document.getElementById('btnReset');
 
-// 모바일 좌표 변환 함수
-function getCanvasCoords(e) {
-    const rect = canvas.getBoundingClientRect();
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    return {
-        x: (clientX - rect.left) * (canvas.width / rect.width),
-        y: (clientY - rect.top) * (canvas.height / rect.height)
-    };
-}
+    let activeLead = null; // 'E' or 'L' or null
 
-// 터치 & 마우스 공통 포인터 이벤트
-let isDragging = null; // 'E' or 'L'
-
-function handleStart(e) {
-    const pos = getCanvasCoords(e);
-    // E, L 리드선 드래그 감지 로직
-    if (Math.hypot(pos.x - probeE.x, pos.y - probeE.y) < 30) isDragging = 'E';
-    else if (Math.hypot(pos.x - probeL.x, pos.y - probeL.y) < 30) isDragging = 'L';
+    // State Variables
+    let scenario = {};
+    let targetTerminals = [];
     
-    if (isDragging) e.preventDefault();
-}
+    // Probes default pos
+    let probeE = { x: 50, y: 380, target: null };
+    let probeL = { x: 100, y: 380, target: null };
 
-function handleMove(e) {
-    if (!isDragging) return;
-    e.preventDefault();
-    const pos = getCanvasCoords(e);
-    if (isDragging === 'E') { probeE.x = pos.x; probeE.y = pos.y; }
-    if (isDragging === 'L') { probeL.x = pos.x; probeL.y = pos.y; }
-    draw();
-}
+    let draggingProbe = null;
 
-function handleEnd(e) {
-    isDragging = null;
-    draw();
-}
+    function initScenario() {
+      // 0: Normal, 1: Load1 Shorted, 2: Load2 Low Insulation
+      const type = Math.floor(Math.random() * 3);
+      scenario = {
+        type: type,
+        mainON: false,
+        b1ON: false,
+        b2ON: false,
+        rLoad1: type === 1 ? 0.02 : 500, // MΩ
+        rLoad2: type === 2 ? 0.15 : 500  // MΩ
+      };
 
-// 기본 위치 설정
-let probeE = { x: 120, y: 420 };
-let probeL = { x: 220, y: 420 };
+      probeE = { x: 60, y: 380, target: null };
+      probeL = { x: 120, y: 380, target: null };
+      activeLead = null;
+      updateButtonStyles();
+      draw();
+    }
 
-// 이벤트 등록 (터치/마우스 모두 지원)
-canvas.addEventListener('mousedown', handleStart);
-canvas.addEventListener('mousemove', handleMove);
-window.addEventListener('mouseup', handleEnd);
+    function updateButtonStyles() {
+      btnSelectE.classList.toggle('active', activeLead === 'E');
+      btnSelectL.classList.toggle('active', activeLead === 'L');
+    }
 
-canvas.addEventListener('touchstart', handleStart, {passive: false});
-canvas.addEventListener('touchmove', handleMove, {passive: false});
-canvas.addEventListener('touchend', handleEnd);
+    btnSelectE.addEventListener('click', () => {
+      activeLead = activeLead === 'E' ? null : 'E';
+      updateButtonStyles();
+    });
 
-// 버튼 클릭 터치 지원
-document.getElementById('btnSelectE').addEventListener('click', () => {
-    activeProbe = activeProbe === 'E' ? null : 'E';
-    updateBtnStyle();
-});
-document.getElementById('btnSelectL').addEventListener('click', () => {
-    activeProbe = activeProbe === 'L' ? null : 'L';
-    updateBtnStyle();
-});
+    btnSelectL.addEventListener('click', () => {
+      activeLead = activeLead === 'L' ? null : 'L';
+      updateButtonStyles();
+    });
 
-function updateBtnStyle() {
-    document.getElementById('btnSelectE').className = 'btn btn-probe' + (activeProbe === 'E' ? ' active-e' : '');
-    document.getElementById('btnSelectL').className = 'btn btn-probe' + (activeProbe === 'L' ? ' active-l' : '');
-}
+    btnReset.addEventListener('click', initScenario);
 
-// 렌더링 함수
-function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // 분전함 및 메거 그리기
-    ctx.fillStyle = "#334155";
-    ctx.fillRect(50, 50, 800, 380);
-    
-    // 접지 단자대 (BUSBAR)
-    ctx.fillStyle = "#16a34a";
-    ctx.fillRect(300, 80, 500, 20);
-    ctx.fillStyle = "#fff";
-    ctx.font = "bold 12px sans-serif";
-    ctx.fillText("EARTH BUSBAR (접지 단자대)", 470, 95);
+    function setupTerminals() {
+      targetTerminals = [
+        // Earth Busbar
+        { id: 'earth', x: 280, y: 45, radius: 15, type: 'EARTH' },
+        
+        // Main Breaker Upper
+        { id: 'm_in_l', x: 200, y: 130, radius: 12, type: 'MAIN_IN' },
+        { id: 'm_in_n', x: 230, y: 130, radius: 12, type: 'MAIN_IN' },
+        // Main Breaker Lower
+        { id: 'm_out_l', x: 200, y: 220, radius: 12, type: 'BUS' },
+        { id: 'm_out_n', x: 230, y: 220, radius: 12, type: 'BUS' },
 
-    // 메거 계측기
-    ctx.fillStyle = "#0284c7";
-    ctx.fillRect(80, 120, 180, 220);
-    ctx.fillStyle = "#1e293b";
-    ctx.fillRect(95, 140, 150, 80);
-    ctx.fillStyle = "#4ade80";
-    ctx.font = "bold 20px monospace";
-    ctx.fillText("500V MEG", 110, 185);
+        // Branch 1 Upper
+        { id: 'b1_in_l', x: 300, y: 150, radius: 10, type: 'BUS' },
+        { id: 'b1_in_n', x: 325, y: 150, radius: 10, type: 'BUS' },
+        // Branch 1 Lower
+        { id: 'b1_out_l', x: 300, y: 220, radius: 10, type: 'LOAD1' },
+        { id: 'b1_out_n', x: 325, y: 220, radius: 10, type: 'LOAD1' },
 
-    // 리드선 연결선 그려주기
-    ctx.beginPath();
-    ctx.moveTo(130, 320); ctx.lineTo(probeE.x, probeE.y);
-    ctx.strokeStyle = "#16a34a"; ctx.lineWidth = 5; ctx.stroke();
+        // Branch 2 Upper
+        { id: 'b2_in_l', x: 380, y: 150, radius: 10, type: 'BUS' },
+        { id: 'b2_in_n', x: 405, y: 150, radius: 10, type: 'BUS' },
+        // Branch 2 Lower
+        { id: 'b2_out_l', x: 380, y: 220, radius: 10, type: 'LOAD2' },
+        { id: 'b2_out_n', x: 405, y: 220, radius: 10, type: 'LOAD2' }
+      ];
+    }
 
-    ctx.beginPath();
-    ctx.moveTo(210, 320); ctx.lineTo(probeL.x, probeL.y);
-    ctx.strokeStyle = "#dc2626"; ctx.lineWidth = 5; ctx.stroke();
+    function calculateResistance() {
+      if (!probeE.target || !probeL.target) return '---';
 
-    // 프로브 헤드
-    ctx.beginPath(); ctx.arc(probeE.x, probeE.y, 16, 0, Math.PI*2); ctx.fillStyle = "#16a34a"; ctx.fill();
-    ctx.fillStyle = "#fff"; ctx.fillText("E", probeE.x - 5, probeE.y + 5);
+      const tE = probeE.target;
+      const tL = probeL.target;
 
-    ctx.beginPath(); ctx.arc(probeL.x, probeL.y, 16, 0, Math.PI*2); ctx.fillStyle = "#dc2626"; ctx.fill();
-    ctx.fillStyle = "#fff"; ctx.fillText("L", probeL.x - 5, probeL.y + 5);
-}
+      // Must have Earth connected to Earth Busbar for valid insulation test
+      if (tE.id !== 'earth' && tL.id !== 'earth') {
+        return 'ERR'; // Improper connection
+      }
 
-document.getElementById('btnReset').addEventListener('click', () => {
-    probeE = { x: 120, y: 420 };
-    probeL = { x: 220, y: 420 };
-    activeProbe = null;
-    updateBtnStyle();
-    draw();
-});
+      const activeProbe = (tE.id === 'earth') ? tL : tE;
 
-// 초기화 렌더링
-draw();
-</script>
+      if (activeProbe.id === 'earth') return 0;
+
+      let r = 500; // Normal infinity approx
+
+      // Check connections based on breaker states
+      if (activeProbe.type === 'LOAD1') {
+        r = Math.min(r, scenario.rLoad1);
+      } else if (activeProbe.type === 'LOAD2') {
+        r = Math.min(r, scenario.rLoad2);
+      } else if (activeProbe.type === 'BUS') {
+        if (scenario.b1ON) r = Math.min(r, scenario.rLoad1);
+        if (scenario.b2ON) r = Math.min(r, scenario.rLoad2);
+      } else if (activeProbe.type === 'MAIN_IN') {
+        if (scenario.mainON) {
+          if (scenario.b1ON) r = Math.min(r, scenario.rLoad1);
+          if (scenario.b2ON) r = Math.min(r, scenario.rLoad2);
+        }
+      }
+
+      return r >= 500 ? '> 500' : r.toFixed(2);
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // 1. Draw Panel Frame
+      ctx.strokeStyle = '#334155';
+      ctx.lineWidth = 4;
+      ctx.strokeRect(150, 20, 390, 260);
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(150, 20, 390, 260);
+
+      // 2. Earth Busbar
+      ctx.fillStyle = '#16a34a';
+      ctx.fillRect(180, 35, 330, 15);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '10px sans-serif';
+      ctx.fillText('접지 단자대 (EARTH BUSBAR)', 260, 47);
+
+      // 3. Main Breaker (MCCB/ELCB)
+      ctx.fillStyle = '#334155';
+      ctx.fillRect(185, 110, 60, 130);
+      ctx.fillStyle = '#f8fafc';
+      ctx.font = 'bold 11px sans-serif';
+      ctx.fillText('메인', 202, 100);
+
+      // Main Switch
+      ctx.fillStyle = scenario.mainON ? '#22c55e' : '#ef4444';
+      ctx.fillRect(202, 160, 26, 30);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(scenario.mainON ? 'ON' : 'OFF', 206, 178);
+
+      // 4. Branch Breakers
+      // Branch 1
+      ctx.fillStyle = '#475569';
+      ctx.fillRect(285, 135, 50, 100);
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillText('부하1', 295, 125);
+      ctx.fillStyle = scenario.b1ON ? '#22c55e' : '#ef4444';
+      ctx.fillRect(298, 170, 24, 24);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(scenario.b1ON ? 'ON' : 'OFF', 300, 186);
+
+      // Branch 2
+      ctx.fillStyle = '#475569';
+      ctx.fillRect(365, 135, 50, 100);
+      ctx.fillStyle = '#f8fafc';
+      ctx.fillText('부하2', 375, 125);
+      ctx.fillStyle = scenario.b2ON ? '#22c55e' : '#ef4444';
+      ctx.fillRect(378, 170, 24, 24);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(scenario.b2ON ? 'ON' : 'OFF', 380, 186);
+
+      // 5. Busbars (Internal Wiring)
+      ctx.strokeStyle = '#ef4444'; // Live Line Bus
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(200, 220); ctx.lineTo(200, 255); ctx.lineTo(380, 255); ctx.lineTo(380, 150);
+      ctx.moveTo(300, 255); ctx.lineTo(300, 150);
+      ctx.stroke();
+
+      ctx.strokeStyle = '#3b82f6'; // Neutral Line Bus
+      ctx.beginPath();
+      ctx.moveTo(230, 220); ctx.lineTo(230, 265); ctx.lineTo(405, 265); ctx.lineTo(405, 150);
+      ctx.moveTo(325, 265); ctx.lineTo(325, 150);
+      ctx.stroke();
+
+      // 6. Terminals
+      setupTerminals();
+      targetTerminals.forEach(t => {
+        ctx.beginPath();
+        ctx.arc(t.x, t.y, 5, 0, Math.PI * 2);
+        ctx.fillStyle = '#cbd5e1';
+        ctx.fill();
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      });
+
+      // 7. Megger Instrument (Left Side)
+      ctx.fillStyle = '#0284c7';
+      ctx.fillRect(15, 290, 130, 115);
+      ctx.strokeStyle = '#38bdf8';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(15, 290, 130, 115);
+
+      // Megger Display
+      ctx.fillStyle = '#0f172a';
+      ctx.fillRect(25, 300, 110, 40);
+      ctx.fillStyle = '#22c55e';
+      ctx.font = 'bold 16px monospace';
+      const resVal = calculateResistance();
+      if (resVal === '---') {
+        ctx.fillText('--- MΩ', 45, 325);
+      } else if (resVal === 'ERR') {
+        ctx.fillStyle = '#ef4444';
+        ctx.fillText('CONN ERR', 32, 325);
+      } else {
+        ctx.fillText(resVal + ' MΩ', 35, 325);
+      }
+
+      // Megger Sockets
+      ctx.fillStyle = '#16a34a';
+      ctx.beginPath(); ctx.arc(45, 360, 8, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#ffffff'; ctx.font = '10px sans-serif'; ctx.fillText('E', 42, 363);
+
+      ctx.fillStyle = '#dc2626';
+      ctx.beginPath(); ctx.arc(115, 360, 8, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#ffffff'; ctx.fillText('L', 112, 363);
+
+      // 8. Lead Wires & Probes
+      drawLeadWire(45, 360, probeE.x, probeE.y, '#16a34a');
+      drawLeadWire(115, 360, probeL.x, probeL.y, '#dc2626');
+
+      drawProbeTip(probeE.x, probeE.y, '#16a34a', 'E');
+      drawProbeTip(probeL.x, probeL.y, '#dc2626', 'L');
+    }
+
+    function drawLeadWire(sx, sy, ex, ey, color) {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(sx, sy);
+      ctx.bezierCurveTo(sx, sy + 40, ex, ey + 40, ex, ey);
+      ctx.stroke();
+    }
+
+    function drawProbeTip(x, y, color, label) {
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(x, y, 10, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 11px sans-serif';
+      ctx.fillText(label, x - 4, y + 4);
+    }
+
+    // Interactive Touch & Mouse Handling
+    function getCanvasPos(e) {
+      const rect = canvas.getBoundingClientRect();
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      return {
+        x: (clientX - rect.left) * scaleX,
+        y: (clientY - rect.top) * scaleY
+      };
+    }
+
+    function handleStart(pos) {
+      // Toggle switches
+      if (pos.x >= 202 && pos.x <= 228 && pos.y >= 160 && pos.y <= 190) {
+        scenario.mainON = !scenario.mainON;
+        draw(); return;
+      }
+      if (pos.x >= 298 && pos.x <= 322 && pos.y >= 170 && pos.y <= 194) {
+        scenario.b1ON = !scenario.b1ON;
+        draw(); return;
+      }
+      if (pos.x >= 378 && pos.x <= 402 && pos.y >= 170 && pos.y <= 194) {
+        scenario.b2ON = !scenario.b2ON;
+        draw(); return;
+      }
+
+      // Button-selected terminal tap mode
+      if (activeLead) {
+        const hitTerminal = targetTerminals.find(t => Math.hypot(t.x - pos.x, t.y - pos.y) < 25);
+        if (hitTerminal) {
+          if (activeLead === 'E') {
+            probeE.x = hitTerminal.x; probeE.y = hitTerminal.y; probeE.target = hitTerminal;
+          } else {
+            probeL.x = hitTerminal.x; probeL.y = hitTerminal.y; probeL.target = hitTerminal;
+          }
+          activeLead = null;
+          updateButtonStyles();
+          draw();
+          return;
+        }
+      }
+
+      // Dragging probes directly
+      if (Math.hypot(probeE.x - pos.x, probeE.y - pos.y) < 25) {
+        draggingProbe = 'E';
+      } else if (Math.hypot(probeL.x - pos.x, probeL.y - pos.y) < 25) {
+        draggingProbe = 'L';
+      }
+    }
+
+    function handleMove(pos) {
+      if (!draggingProbe) return;
+      if (draggingProbe === 'E') {
+        probeE.x = pos.x; probeE.y = pos.y;
+      } else if (draggingProbe === 'L') {
+        probeL.x = pos.x; probeL.y = pos.y;
+      }
+      draw();
+    }
+
+    function handleEnd() {
+      if (!draggingProbe) return;
+      const currentProbe = draggingProbe === 'E' ? probeE : probeL;
+      const hitTerminal = targetTerminals.find(t => Math.hypot(t.x - currentProbe.x, t.y - currentProbe.y) < 20);
+
+      if (hitTerminal) {
+        currentProbe.x = hitTerminal.x;
+        currentProbe.y = hitTerminal.y;
+        currentProbe.target = hitTerminal;
+      } else {
+        currentProbe.target = null;
+      }
+
+      draggingProbe = null;
+      draw();
+    }
+
+    canvas.addEventListener('mousedown', (e) => handleStart(getCanvasPos(e)));
+    canvas.addEventListener('mousemove', (e) => handleMove(getCanvasPos(e)));
+    canvas.addEventListener('mouseup', handleEnd);
+
+    canvas.addEventListener('touchstart', (e) => { e.preventDefault(); handleStart(getCanvasPos(e)); }, { passive: false });
+    canvas.addEventListener('touchmove', (e) => { e.preventDefault(); handleMove(getCanvasPos(e)); }, { passive: false });
+    canvas.addEventListener('touchend', handleEnd);
+
+    // Initial setup
+    initScenario();
+  </script>
 </body>
 </html>
