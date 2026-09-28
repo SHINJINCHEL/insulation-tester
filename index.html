@@ -116,8 +116,8 @@
     </div>
 
     <div class="guide-box">
-      💡 <b>점검 팁:</b><br>
-      E(접지)선을 접지 단자대에 고정하고, L(라인)선으로 메인 1차측(L/N 단자) 및 부하 측을 측정해 보세요.
+      💡 <b>배선 구성:</b><br>
+      메인 2차측(하단) $\rightarrow$ 부하 차단기 1차측(상단)으로 정상 연결되어 있습니다.
     </div>
   </div>
 
@@ -179,24 +179,24 @@
         { id: 'earth', x: 310, y: 30, radius: 15, type: 'EARTH' },
         
         // Main Breaker Upper (1차측 L, N)
-        { id: 'm_in_l', x: 195, y: 80, radius: 10, type: 'MAIN_IN', line: 'L' },
-        { id: 'm_in_n', x: 225, y: 80, radius: 10, type: 'MAIN_IN', line: 'N' },
+        { id: 'm_in_l', x: 195, y: 75, radius: 10, type: 'MAIN_IN', line: 'L' },
+        { id: 'm_in_n', x: 225, y: 75, radius: 10, type: 'MAIN_IN', line: 'N' },
         
-        // Main Breaker Lower (2차측 버스바)
-        { id: 'm_out_l', x: 195, y: 160, radius: 10, type: 'BUS', line: 'L' },
-        { id: 'm_out_n', x: 225, y: 160, radius: 10, type: 'BUS', line: 'N' },
+        // Main Breaker Lower (2차측)
+        { id: 'm_out_l', x: 195, y: 165, radius: 10, type: 'BUS', line: 'L' },
+        { id: 'm_out_n', x: 225, y: 165, radius: 10, type: 'BUS', line: 'N' },
 
-        // Branch 1 Upper/Lower
-        { id: 'b1_in_l', x: 295, y: 100, radius: 10, type: 'BUS', line: 'L' },
-        { id: 'b1_in_n', x: 325, y: 100, radius: 10, type: 'BUS', line: 'N' },
-        { id: 'b1_out_l', x: 295, y: 160, radius: 10, type: 'LOAD1', line: 'L' },
-        { id: 'b1_out_n', x: 325, y: 160, radius: 10, type: 'LOAD1', line: 'N' },
+        // Branch 1 Upper (1차측) / Lower (2차측 부하선)
+        { id: 'b1_in_l', x: 295, y: 95, radius: 10, type: 'BUS', line: 'L' },
+        { id: 'b1_in_n', x: 325, y: 95, radius: 10, type: 'BUS', line: 'N' },
+        { id: 'b1_out_l', x: 295, y: 165, radius: 10, type: 'LOAD1', line: 'L' },
+        { id: 'b1_out_n', x: 325, y: 165, radius: 10, type: 'LOAD1', line: 'N' },
 
-        // Branch 2 Upper/Lower
-        { id: 'b2_in_l', x: 385, y: 100, radius: 10, type: 'BUS', line: 'L' },
-        { id: 'b2_in_n', x: 415, y: 100, radius: 10, type: 'BUS', line: 'N' },
-        { id: 'b2_out_l', x: 385, y: 160, radius: 10, type: 'LOAD2', line: 'L' },
-        { id: 'b2_out_n', x: 415, y: 160, radius: 10, type: 'LOAD2', line: 'N' }
+        // Branch 2 Upper (1차측) / Lower (2차측 부하선)
+        { id: 'b2_in_l', x: 385, y: 95, radius: 10, type: 'BUS', line: 'L' },
+        { id: 'b2_in_n', x: 415, y: 95, radius: 10, type: 'BUS', line: 'N' },
+        { id: 'b2_out_l', x: 385, y: 165, radius: 10, type: 'LOAD2', line: 'L' },
+        { id: 'b2_out_n', x: 415, y: 165, radius: 10, type: 'LOAD2', line: 'N' }
       ];
     }
 
@@ -209,13 +209,12 @@
       // 1. E선과 L선이 모두 접지 단자대에 연결된 경우
       if (tE.id === 'earth' && tL.id === 'earth') return 0;
 
-      // 2. 한쪽이 접지 단자대인 일반 대지 절연저항 측정
+      // 2. 대지 절연저항 측정 (E선 또는 L선이 접지 단자대에 연결)
       if (tE.id === 'earth' || tL.id === 'earth') {
         const activeProbe = (tE.id === 'earth') ? tL : tE;
         let r = 500;
 
         if (activeProbe.type === 'MAIN_IN') {
-          // 메인 1차측은 메인 스위치가 ON일 때만 부하측 절연저항 영향 받음
           if (scenario.mainON) {
             if (scenario.b1ON) r = Math.min(r, scenario.rLoad1);
             if (scenario.b2ON) r = Math.min(r, scenario.rLoad2);
@@ -232,13 +231,12 @@
         return r >= 500 ? '> 500' : r.toFixed(2);
       }
 
-      // 3. 접지 단자대 없이 단자 간(L-N 등) 선간 측정을 수행하는 경우
-      // 같은 단자 찍었을 때
+      // 3. 같은 단자를 찍었을 때
       if (tE.id === tL.id) return 0;
 
-      // 메인 1차측 L-N 선간 측정 시
+      // 4. 메인 1차측 L-N 선간 측정
       if (tE.type === 'MAIN_IN' && tL.type === 'MAIN_IN') {
-        return '> 500'; // 전원 측 절연 양호
+        return '> 500';
       }
 
       return 'ERR';
@@ -261,31 +259,25 @@
       ctx.font = 'bold 11px sans-serif';
       ctx.fillText('접지 단자대 (EARTH BUSBAR)', 230, 34);
 
-      // 3. Main Breaker
+      // 3. Main Breaker (메인 차단기)
       ctx.fillStyle = '#334155';
-      ctx.fillRect(180, 65, 60, 110);
+      ctx.fillRect(180, 60, 60, 115);
       ctx.fillStyle = '#f8fafc';
       ctx.font = 'bold 11px sans-serif';
-      ctx.fillText('메인', 198, 60);
+      ctx.fillText('메인', 198, 55);
 
       ctx.fillStyle = scenario.mainON ? '#22c55e' : '#ef4444';
       ctx.fillRect(195, 105, 30, 26);
       ctx.fillStyle = '#ffffff';
       ctx.fillText(scenario.mainON ? 'ON' : 'OFF', 198, 122);
 
-      // 1차측 L/N 표시
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = '9px sans-serif';
-      ctx.fillText('L', 192, 76);
-      ctx.fillText('N', 222, 76);
-
-      // 4. Branch Breakers
+      // 4. Branch Breakers (부하 차단기)
       // Branch 1
       ctx.fillStyle = '#334155';
-      ctx.fillRect(280, 85, 55, 90);
+      ctx.fillRect(280, 80, 55, 95);
       ctx.fillStyle = '#f8fafc';
       ctx.font = 'bold 11px sans-serif';
-      ctx.fillText('부하1', 292, 78);
+      ctx.fillText('부하1', 292, 73);
       ctx.fillStyle = scenario.b1ON ? '#22c55e' : '#ef4444';
       ctx.fillRect(295, 115, 25, 22);
       ctx.fillStyle = '#ffffff';
@@ -293,26 +285,36 @@
 
       // Branch 2
       ctx.fillStyle = '#334155';
-      ctx.fillRect(370, 85, 55, 90);
+      ctx.fillRect(370, 80, 55, 95);
       ctx.fillStyle = '#f8fafc';
-      ctx.fillText('부하2', 382, 78);
+      ctx.fillText('부하2', 382, 73);
       ctx.fillStyle = scenario.b2ON ? '#22c55e' : '#ef4444';
       ctx.fillRect(385, 115, 25, 22);
       ctx.fillStyle = '#ffffff';
       ctx.fillText(scenario.b2ON ? 'ON' : 'OFF', 387, 130);
 
-      // 5. Internal Busbars
-      ctx.strokeStyle = '#ef4444'; // L선 (빨간색)
+      // 5. Internal Busbars (메인 2차측 -> 부하1/2 1차측 상단 연결)
+      // L선 (빨간색 버스바)
+      ctx.strokeStyle = '#ef4444';
       ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.moveTo(195, 160); ctx.lineTo(195, 195); ctx.lineTo(385, 195); ctx.lineTo(385, 100);
-      ctx.moveTo(295, 195); ctx.lineTo(295, 100);
+      ctx.moveTo(195, 165); // 메인 2차 L
+      ctx.lineTo(195, 200);
+      ctx.lineTo(385, 200);
+      ctx.lineTo(385, 95);  // 부하2 1차 L
+      ctx.moveTo(295, 200);
+      ctx.lineTo(295, 95);  // 부하1 1차 L
       ctx.stroke();
 
-      ctx.strokeStyle = '#3b82f6'; // N선 (파란색)
+      // N선 (파란색 버스바)
+      ctx.strokeStyle = '#3b82f6';
       ctx.beginPath();
-      ctx.moveTo(225, 160); ctx.lineTo(225, 205); ctx.lineTo(415, 205); ctx.lineTo(415, 100);
-      ctx.moveTo(325, 205); ctx.lineTo(325, 100);
+      ctx.moveTo(225, 165); // 메인 2차 N
+      ctx.lineTo(225, 210);
+      ctx.lineTo(415, 210);
+      ctx.lineTo(415, 95);  // 부하2 1차 N
+      ctx.moveTo(325, 210);
+      ctx.lineTo(325, 95);  // 부하1 1차 N
       ctx.stroke();
 
       // 6. Draw Terminals
