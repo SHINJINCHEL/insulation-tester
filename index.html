@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>실전 단상 2선식 분전함 & 메거 절연저항 시뮬레이터 V4.1 (개별 분기 차단 측정 적용)</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif; background: #0f172a; color: #f8fafc; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        h1 { margin-bottom: 12px; font-size: 22px; color: #38bdf8; text-align: center; }
+        
+        .instructions { background: #1e293b; padding: 14px 20px; border-radius: 8px; max-width: 1100px; width: 100%; margin-bottom: 16px; font-size: 13px; line-height: 1.6; border-left: 4px solid #0284c7; }
+        .instructions ol { margin-left: 20px; }
+
+        .control-panel { background: #1e293b; padding: 12px 18px; border-radius: 8px; max-width: 1100px; width: 100%; margin-bottom: 16px; display: flex; gap: 15px; flex-wrap: wrap; align-items: center; justify-content: space-between; border: 1px solid #334155; }
+        .breaker-settings { display: flex; gap: 15px; flex-wrap: wrap; align-items: center; }
+        .control-group { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+        .control-group label { color: #94a3b8; font-weight: bold; }
+        .control-group select { background: #0f172a; color: #f8fafc; border: 1px solid #475569; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+
+        .btn-reset { background: #0284c7; color: #fff; border: none; padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: bold; cursor: pointer; transition: background 0.2s; }
+        .btn-reset:hover { background: #0369a1; }
+
+        .sim-layout { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; max-width: 1100px; width: 100%; }
+        
+        .meter-box { background: #18181b; border: 2px solid #334155; border-radius: 12px; padding: 16px; width: 280px; display: flex; flex-direction: column; align-items: center; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        .meter-status { font-size: 12px; height: 42px; font-weight: bold; margin-top: 6px; text-align: center; display: flex; align-items: center; justify-content: center; line-height: 1.3; }
+        .status-danger { color: #ef4444; }
+        .status-good { color: #22c55e; }
+        .status-warn { color: #f59e0b; }
+        
+        .canvas-container { background: #18181b; border: 3px solid #27272a; border-radius: 10px; padding: 8px; position: relative; }
+        canvas { background: #20232a; border-radius: 6px; cursor: default; }
+    </style>
+</head>
+<body>
+
+    <h1>⚡ 실전 단상 2선식 분전함 & 메거 절연저항 시뮬레이터 V4.1</h1>
+    
+    <div class="instructions">
+        <strong>📌 현장 실무 점검가이드:</strong>
+        <ol>
+            <li><strong>💡 메인 ON 상태 개별 측정 가능:</strong> 메인이 ON 상태이더라도 <u>측정할 분기 차단기만 OFF</u>시키면 2차측 절연저항을 정상 측정할 수 있습니다.</li>
+            <li><strong>다중접지 N상 이용 측정:</strong> 리드선 한쪽(E)을 N선(한전 다중접지) 또는 접지단자대에 물리고, 측정할 분기 차단기 2차측(L)을 찍어 측정합니다.</li>
+            <li><strong>⚠️ 활선 접속 주의:</strong> 전압이 통하는 상태(메인 ON + 분기 ON 상태의 2차측, 또는 1차측 HOT선)에서 측정 시 계측기 손상 경고음이 발생합니다.</li>
+        </ol>
+    </div>
+
+    <!-- 설정 및 리셋 패널 -->
+    <div class="control-panel">
+        <div class="breaker-settings">
+            <strong style="font-size: 13px; color: #38bdf8;">⚙️ 차단기 타입 설정:</strong>
+            <div class="control-group">
+                <label>분기 1 (전등)</label>
+                <select onchange="changeBreakerType(0, this.value)" id="sel0">
+                    <option value="ELB">누전차단기 (ELB)</option>
+                    <option value="MCCB">배선차단기 (MCCB)</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>분기 2 (전열 1)</label>
+                <select onchange="changeBreakerType(1, this.value)" id="sel1">
+                    <option value="ELB" selected>누전차단기 (ELB)</option>
+                    <option value="MCCB">배선차단기 (MCCB)</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>분기 3 (전열 2)</label>
+                <select onchange="changeBreakerType(2, this.value)" id="sel2">
+                    <option value="ELB" selected>누전차단기 (ELB)</option>
+                    <option value="MCCB">배선차단기 (MCCB)</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>분기 4 (에어컨)</label>
+                <select onchange="changeBreakerType(3, this.value)" id="sel3">
+                    <option value="MCCB">배선차단기 (MCCB)</option>
+                    <option value="ELB" selected>누전차단기 (ELB)</option>
+                </select>
+            </div>
+        </div>
+
+        <button class="btn-reset" onclick="resetScenario()">🎲 새로운 현장 시나리오 (리셋)</button>
+    </div>
+
+    <div class="sim-layout">
+        <!-- 계측기 -->
+        <div class="meter-box">
+            <h3 style="color:#94a3b8; font-size:14px; margin-bottom:4px;">CHUNGPA MULTI METER</h3>
+            <div id="statusText" class="meter-status status-warn">탐침을 단자에 연결하고 TEST 버튼을 누르세요.</div>
+            <div style="margin-top:10px; font-size:12px; color:#cbd5e1; width:100%; background:#1e293b; padding:10px; border-radius:6px; line-height: 1.5;">
+                <p>⬛ EARTH (기준): <span id="eConn" style="color:#f59e0b;">미연결</span></p>
+                <p>🟥 LINE (측정): <span id="lConn" style="color:#f59e0b;">미연결</span></p>
+            </div>
+        </div>
+
+        <!-- Canvas -->
+        <div class="canvas-container">
+            <canvas id="simCanvas" width="780" height="520"></canvas>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('simCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Web Audio API 사운드 생성기
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            const now = audioCtx.currentTime;
+
+            if (type === 'click') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(800, now);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+                osc.start(now);
+                osc.stop(now + 0.08);
+            } else if (type === 'good') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(523.25, now);
+                osc.frequency.setValueAtTime(659.25, now + 0.1);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+                osc.start(now);
+                osc.stop(now + 0.35);
+            } else if (type === 'danger') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(220, now);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+                osc.start(now);
+                osc.stop(now + 0.5);
+            } else if (type === 'warn') {
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(300, now);
+                gain.gain.setValueAtTime(0.15, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+                osc.start(now);
+                osc.stop(now + 0.2);
+            }
+        }
+
+        let mainBreaker = { on: true, type: "MCCB" }; // 현장 실무에 맞춰 기본 ON 세팅
+
+        let subBreakers = [
+            { name: "전등", on: true, type: "ELB", resistance: 180.5 },
+            { name: "전열 1", on: true, type: "ELB", resistance: 220.0 },
+            { name: "전열 2", on: true, type: "ELB", resistance: 195.0 },
+            { name: "에어컨", on: true, type: "ELB", resistance: 310.2 }
+        ];
+
+        let testActive = false;
+        let testResultValue = null;
+
+        const meterPos = { x: 30, y: 120, w: 180, h: 320 };
+
+        const snapPoints = {
+            earthBar: { x: 410, y: 65, name: "접지단자대(E)", category: "GROUND" },
+            
+            main_in_L: { x: 280, y: 125, name: "메인 1차측 L(HOT)", category: "HOT" },
+            main_in_N: { x: 310, y: 125, name: "메인 1차측 N선", category: "GROUND" },
+
+            main_out_L: { x: 280, y: 285, name: "메인 2차측 L선", category: "BUSBAR" },
+            main_out_N: { x: 310, y: 285, name: "메인 2차측 N선", category: "BUSBAR" },
+
+            sub1_in_L: { x: 405, y: 125, name: "분기1 1차측 L", category: "BUSBAR" },
+            sub1_in_N: { x: 425, y: 125, name: "분기1 1차측 N", category: "BUSBAR" },
+            sub2_in_L: { x: 475, y: 125, name: "분기2 1차측 L", category: "BUSBAR" },
+            sub2_in_N: { x: 495, y: 125, name: "분기2 1차측 N", category: "BUSBAR" },
+            sub3_in_L: { x: 545, y: 125, name: "분기3 1차측 L", category: "BUSBAR" },
+            sub3_in_N: { x: 565, y: 125, name: "분기3 1차측 N", category: "BUSBAR" },
+            sub4_in_L: { x: 615, y: 125, name: "분기4 1차측 L", category: "BUSBAR" },
+            sub4_in_N: { x: 635, y: 125, name: "분기4 1차측 N", category: "BUSBAR" },
+
+            sub1_out_L: { x: 405, y: 285, name: "분기1 2차측 L", category: "SUB_OUT", index: 0 },
+            sub1_out_N: { x: 425, y: 285, name: "분기1 2차측 N", category: "SUB_OUT", index: 0 },
+            sub2_out_L: { x: 475, y: 285, name: "분기2 2차측 L", category: "SUB_OUT", index: 1 },
+            sub2_out_N: { x: 495, y: 285, name: "분기2 2차측 N", category: "SUB_OUT", index: 1 },
+            sub3_out_L: { x: 545, y: 285, name: "분기3 2차측 L", category: "SUB_OUT", index: 2 },
+            sub3_out_N: { x: 565, y: 285, name: "분기3 2차측 N", category: "SUB_OUT", index: 2 },
+            sub4_out_L: { x: 615, y: 285, name: "분기4 2차측 L", category: "SUB_OUT", index: 3 },
+            sub4_out_N: { x: 635, y: 285, name: "분기4 2차측 N", category: "SUB_OUT", index: 3 }
+        };
+
+        const meterTerminals = {
+            earth: { x: meterPos.x + 45, y: meterPos.y + 25 },
+            line: { x: meterPos.x + 90, y: meterPos.y + 25 }
+        };
+
+        let probeE = { x: meterPos.x + 30, y: meterPos.y + 370, connected: null };
+        let probeL = { x: meterPos.x + 150, y: meterPos.y + 370, connected: null };
+        let activeDrag = null;
+
+        function resetScenario() {
+            playSound('click');
+            
+            mainBreaker.on = true; // 기본 수전 상태 (ON)
+            
+            subBreakers.forEach((b) => {
+                b.on = true;
+                b.resistance = +(150 + Math.random() * 300).toFixed(1);
+            });
+
+            let isFault = Math.random() < 0.7;
+
+            if (isFault) {
+                let faultIndex = Math.floor(Math.random() * 4);
+                let faultRes = +(Math.random() * 0.15).toFixed(2);
+                subBreakers[faultIndex].resistance = faultRes;
+            }
+
+            probeE = { x: meterPos.x + 30, y: meterPos.y + 370, connected: null };
+            probeL = { x: meterPos.x + 150, y: meterPos.y + 370, connected: null };
+            
+            testActive = false;
+            testResultValue = null;
+
+            updateUIInfo();
+            
+            const stText = document.getElementById('statusText');
+            stText.innerText = "🎲 새로운 현장이 세팅되었습니다.\n측정할 분기 차단기를 OFF하고 측정해보세요!";
+            stText.className = "meter-status status-warn";
+
+            draw();
+        }
+
+        function changeBreakerType(index, type) {
+            subBreakers[index].type = type;
+            draw();
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const mx = e.clientX - rect.left;
+            const my = e.clientY - rect.top;
+
+            // 메인 차단기
+            if (mx >= 275 && mx <= 315 && my >= 170 && my <= 230) {
+                mainBreaker.on = my < 200;
+                testActive = false;
+                playSound('click');
+                draw();
+                return;
+            }
+
+            // 분기 차단기
+            subBreakers.forEach((b, i) => {
+                let bx = 390 + i * 70;
+                if (mx >= bx + 10 && mx <= bx + 50 && my >= 170 && my <= 230) {
+                    b.on = my < 200;
+                    testActive = false;
+                    playSound('click');
+                    draw();
+                    return;
+                }
+            });
+
+            // TEST 버튼 클릭
+            let btnX = meterPos.x + 90, btnY = meterPos.y + 215;
+            if (Math.hypot(mx - btnX, my - btnY) < 22) {
+                playSound('click');
+                runMeasurement();
+                draw();
+                return;
+            }
+
+            if (Math.hypot(mx - probeE.x, my - probeE.y) < 20) activeDrag = 'E';
+            else if (Math.hypot(mx - probeL.x, my - probeL.y) < 20) activeDrag = 'L';
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (!activeDrag) return;
+            const rect = canvas.getBoundingClientRect();
+            let targetProbe = activeDrag === 'E' ? probeE : probeL;
+            targetProbe.x = e.clientX - rect.left;
+            targetProbe.y = e.clientY - rect.top;
+            draw();
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            if (!activeDrag) return;
+            let targetProbe = activeDrag === 'E' ? probeE : probeL;
+            targetProbe.connected = null;
+
+            for (let key in snapPoints) {
+                let sp = snapPoints[key];
+                if (Math.hypot(targetProbe.x - sp.x, targetProbe.y - sp.y) < 18) {
+                    targetProbe.x = sp.x;
+                    targetProbe.y = sp.y;
+                    targetProbe.connected = sp;
+                    playSound('click');
+                    break;
+                }
+            }
+
+            testActive = false;
+            updateUIInfo();
+            activeDrag = null;
+            draw();
+        });
+
+        function updateUIInfo() {
+            document.getElementById('eConn').innerText = probeE.connected ? probeE.connected.name : "미연결";
+            document.getElementById('eConn').style.color = probeE.connected ? "#22c55e" : "#f59e0b";
+            document.getElementById('lConn').innerText = probeL.connected ? probeL.connected.name : "미연결";
+            document.getElementById('lConn').style.color = probeL.connected ? "#22c55e" : "#f59e0b";
+        }
+
+        function runMeasurement() {
+            const stText = document.getElementById('statusText');
+            testActive = true;
+
+            let cE = probeE.connected;
+            let cL = probeL.connected;
+
+            if (!cE || !cL) {
+                testResultValue = "ERR";
+                stText.innerText = "두 탐침을 모두 단자에 연결해 주세요!";
+                stText.className = "meter-status status-warn";
+                playSound('warn');
+                return;
+            }
+
+            // 1. 1차측 HOT선 접속 시 무조건 위험 경고
+            if (cE.category === 'HOT' || cL.category === 'HOT') {
+                testResultValue = "0.00";
+                stText.innerHTML = "⚡ WARNING: HOT선(전압선) 접속!<br>계측기 파손 및 감전 위험";
+                stText.className = "meter-status status-danger";
+                playSound('danger');
+                return;
+            }
+
+            // 2. 접지 기준점 지정 (접지 단자대 또는 메인 1차측 N선)
+            let groundPt = (cE.category === 'GROUND') ? cE : ((cL.category === 'GROUND') ? cL : null);
+            let testPt = (groundPt === cE) ? cL : cE;
+
+            if (!groundPt) {
+                testResultValue = "ERR";
+                stText.innerText = "⬛ 리드선 한쪽은 접지 단자 또는 N선(한전 다중접지)에 물려야 합니다.";
+                stText.className = "meter-status status-warn";
+                playSound('warn');
+                return;
+            }
+
+            // 3. 버스바(BUSBAR) 측정 시 (메인 2차측 통채로 측정)
+            if (testPt.category === 'BUSBAR') {
+                if (mainBreaker.on) {
+                    testResultValue = "0.00";
+                    stText.innerText = "⚡ WARNING: 메인 ON 상태에서 버스바 직접 접촉!<br>활선 전원이 흐르고 있습니다.";
+                    stText.className = "meter-status status-danger";
+                    playSound('danger');
+                    return;
+                }
+                
+                let activeResistances = subBreakers
+                    .filter(b => b.on)
+                    .map(b => b.resistance);
+
+                testResultValue = activeResistances.length > 0 ? Math.min(...activeResistances) : 999.9;
+            } 
+            // 4. 개별 분기 2차측(SUB_OUT) 측정 시 [수정된 핵심 로직]
+            else if (testPt.category === 'SUB_OUT') {
+                let targetSub = subBreakers[testPt.index];
+
+                // 메인이 ON이더라도, 해당 분기 차단기가 ON되어 있다면 활선 상태이므로 경고!
+                if (mainBreaker.on && targetSub.on) {
+                    testResultValue = "0.00";
+                    stText.innerHTML = "⚡ WARNING: 해당 분기 차단기 ON 상태!<br>전원이 인가중이므로 차단기를 내리고 측정하세요.";
+                    stText.className = "meter-status status-danger";
+                    playSound('danger');
+                    return;
+                }
+
+                // 해당 분기 차단기가 OFF 되어 있다면 (메인 ON 여부 상관없이) 안전하게 정상 측정!
+                testResultValue = targetSub.resistance;
+            } else {
+                testResultValue = 999.9;
+            }
+
+            // 5. 판정 및 사운드 출력
+            if (testResultValue < 0.2) {
+                stText.innerText = "❌ [누전 발생] 절연 저항 불량 (0.2 MΩ 미만)";
+                stText.className = "meter-status status-danger";
+                playSound('danger');
+            } else {
+                stText.innerText = "✅ [양호] 정상 절연 상태";
+                stText.className = "meter-status status-good";
+                playSound('good');
+            }
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = "#27272a"; ctx.fillRect(240, 30, 510, 460);
+            ctx.strokeStyle = "#52525b"; ctx.lineWidth = 4; ctx.strokeRect(240, 30, 510, 460);
+
+            ctx.fillStyle = "#15803d"; ctx.fillRect(350, 55, 280, 18);
+            ctx.fillStyle = "#fff"; ctx.font = "bold 11px sans-serif";
+            ctx.fillText("EARTH BUSBAR (접지 단자대)", 410, 68);
+
+            ctx.beginPath(); ctx.strokeStyle = "#ef4444"; ctx.lineWidth = 4;
+            ctx.moveTo(280, 30); ctx.lineTo(280, 125); ctx.stroke();
+
+            ctx.beginPath(); ctx.strokeStyle = "#f8fafc"; ctx.lineWidth = 4;
+            ctx.moveTo(310, 30); ctx.lineTo(310, 125); ctx.stroke();
+
+            ctx.beginPath(); ctx.strokeStyle = "#ef4444"; ctx.lineWidth = 4;
+            ctx.moveTo(280, 285); ctx.lineTo(280, 320); ctx.lineTo(360, 320); 
+            ctx.lineTo(360, 100); ctx.lineTo(660, 100); ctx.stroke();
+
+            ctx.beginPath(); ctx.strokeStyle = "#f8fafc"; ctx.lineWidth = 4;
+            ctx.moveTo(310, 285); ctx.lineTo(310, 310); ctx.lineTo(370, 310); 
+            ctx.lineTo(370, 110); ctx.lineTo(670, 110); ctx.stroke();
+
+            drawBreakerBody(260, 125, 70, 160, "메인 40A", mainBreaker.on, "MCCB");
+
+            subBreakers.forEach((b, i) => {
+                let bx = 380 + i * 70;
+                
+                ctx.beginPath(); ctx.strokeStyle = "#ef4444"; ctx.lineWidth = 3;
+                ctx.moveTo(bx + 25, 100); ctx.lineTo(bx + 25, 125); ctx.stroke();
+
+                ctx.beginPath(); ctx.strokeStyle = "#f8fafc"; ctx.lineWidth = 3;
+                ctx.moveTo(bx + 45, 110); ctx.lineTo(bx + 45, 125); ctx.stroke();
+
+                drawBreakerBody(bx, 125, 60, 160, b.name, b.on, b.type);
+                
+                ctx.beginPath(); ctx.strokeStyle = "#ef4444"; ctx.lineWidth = 3;
+                ctx.moveTo(bx + 25, 285); ctx.lineTo(bx + 25, 440); ctx.stroke();
+
+                ctx.beginPath(); ctx.strokeStyle = "#f8fafc"; ctx.lineWidth = 3;
+                ctx.moveTo(bx + 45, 285); ctx.lineTo(bx + 45, 440); ctx.stroke();
+            });
+
+            for (let k in snapPoints) {
+                let sp = snapPoints[k];
+                ctx.beginPath(); ctx.arc(sp.x, sp.y, 4, 0, Math.PI * 2);
+                if (sp.category === 'GROUND') ctx.fillStyle = "#22c55e";
+                else if (sp.category === 'HOT') ctx.fillStyle = "#ef4444";
+                else ctx.fillStyle = "#facc15";
+                ctx.fill();
+                ctx.strokeStyle = "#000"; ctx.lineWidth = 1; ctx.stroke();
+            }
+
+            drawChungpaMeter();
+            drawWire(meterTerminals.earth, probeE, "#18181b");
+            drawWire(meterTerminals.line, probeL, "#ef4444");
+
+            drawProbeHandle(probeE.x, probeE.y, "#18181b", "E");
+            drawProbeHandle(probeL.x, probeL.y, "#ef4444", "L");
+        }
+
+        function drawBreakerBody(x, y, w, h, name, isOn, type) {
+            ctx.fillStyle = type === "ELB" ? "#f4f4f5" : "#3f3f46";
+            ctx.fillRect(x, y, w, h);
+            ctx.strokeStyle = "#18181b"; ctx.lineWidth = 2; ctx.strokeRect(x, y, w, h);
+
+            ctx.beginPath(); ctx.arc(x + 20, y, 4, 0, Math.PI * 2); ctx.fillStyle = "#ef4444"; ctx.fill();
+            ctx.beginPath(); ctx.arc(x + 40, y, 4, 0, Math.PI * 2); ctx.fillStyle = "#fff"; ctx.fill();
+
+            ctx.beginPath(); ctx.arc(x + 20, y + h, 4, 0, Math.PI * 2); ctx.fillStyle = "#ef4444"; ctx.fill();
+            ctx.beginPath(); ctx.arc(x + 40, y + h, 4, 0, Math.PI * 2); ctx.fillStyle = "#fff"; ctx.fill();
+
+            ctx.fillStyle = type === "ELB" ? "#000" : "#fff";
+            ctx.font = "bold 10px sans-serif";
+            ctx.fillText(type, x + 15, y + 20);
+            ctx.fillText(name, x + 8, y + 35);
+
+            if (type === "ELB") {
+                ctx.beginPath(); ctx.arc(x + w / 2, y + 50, 5, 0, Math.PI * 2);
+                ctx.fillStyle = "#eab308"; ctx.fill();
+            }
+
+            ctx.fillStyle = "#18181b";
+            ctx.fillRect(x + w / 2 - 10, y + 65, 20, 50);
+
+            let leverY = isOn ? (y + 67) : (y + 93);
+            ctx.fillStyle = isOn ? "#dc2626" : "#52525b";
+            ctx.fillRect(x + w / 2 - 8, leverY, 16, 22);
+
+            ctx.fillStyle = "#fff"; ctx.font = "bold 9px sans-serif";
+            ctx.fillText(isOn ? "ON" : "OFF", x + w / 2 - 7, leverY + 14);
+        }
+
+        function drawChungpaMeter() {
+            let x = meterPos.x, y = meterPos.y, w = meterPos.w, h = meterPos.h;
+
+            ctx.fillStyle = "#f59e0b"; ctx.fillRect(x - 4, y - 4, w + 8, h + 8);
+            ctx.fillStyle = "#334155"; ctx.fillRect(x, y, w, h);
+
+            ctx.fillStyle = "#0f172a"; ctx.fillRect(x + 10, y + 10, w - 20, 30);
+            ctx.beginPath(); ctx.arc(meterTerminals.earth.x, meterTerminals.earth.y, 6, 0, Math.PI*2); ctx.fillStyle="#000"; ctx.fill();
+            ctx.beginPath(); ctx.arc(meterTerminals.line.x, meterTerminals.line.y, 6, 0, Math.PI*2); ctx.fillStyle="#ef4444"; ctx.fill();
+
+            ctx.fillStyle = "#86efac"; ctx.fillRect(x + 15, y + 55, w - 30, 80);
+            ctx.strokeStyle = "#166534"; ctx.lineWidth = 2; ctx.strokeRect(x + 15, y + 55, w - 30, 80);
+
+            ctx.fillStyle = "#052e16"; ctx.font = "bold 11px monospace";
+            ctx.fillText("500V MEG MΩ", x + 25, y + 73);
+
+            ctx.font = "bold 24px monospace";
+            let dispVal = "--.-";
+            if (testActive) {
+                dispVal = (typeof testResultValue === 'number') ? testResultValue.toFixed(2) : testResultValue;
+            }
+            ctx.fillText(dispVal, x + 25, y + 110);
+            ctx.font = "11px monospace"; ctx.fillText("MΩ", x + 135, y + 110);
+
+            let btnX = x + 90, btnY = y + 215;
+            ctx.beginPath(); ctx.arc(btnX, btnY, 22, 0, Math.PI * 2);
+            ctx.fillStyle = "#ea580c"; ctx.fill();
+            ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.stroke();
+            
+            ctx.fillStyle = "#fff"; ctx.font = "bold 10px sans-serif";
+            ctx.fillText("TEST", btnX - 13, btnY - 2);
+            ctx.fillText("HOLD", btnX - 14, btnY + 10);
+        }
+
+        function drawWire(p1, p2, color) {
+            ctx.beginPath(); ctx.moveTo(p1.x, p1.y);
+            let midY = Math.max(p1.y, p2.y) + 50;
+            ctx.quadraticCurveTo((p1.x + p2.x) / 2, midY, p2.x, p2.y);
+            ctx.strokeStyle = color; ctx.lineWidth = 4; ctx.stroke();
+        }
+
+        function drawProbeHandle(x, y, color, label) {
+            ctx.beginPath(); ctx.arc(x, y, 10, 0, Math.PI * 2);
+            ctx.fillStyle = color; ctx.fill();
+            ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.stroke();
+            ctx.fillStyle = "#fff"; ctx.font = "bold 10px sans-serif";
+            ctx.fillText(label, x - 3, y + 4);
+        }
+
+        resetScenario();
+    </script>
+</body>
+</html>
